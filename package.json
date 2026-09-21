@@ -46,8 +46,8 @@
     "artifactName": "ControleGastos-${version}-${os}-${arch}.${ext}",
     "publish": {
       "provider": "github",
-      "owner": "SEU_USUARIO_GITHUB",
-      "repo": "controle-gastos"
+      "owner": "viniciusCharleaux",
+      "repo": "zenit-light"
     }
   },
   "dependencies": {
