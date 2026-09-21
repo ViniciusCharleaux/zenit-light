@@ -167,9 +167,29 @@ export class Db {
   }
 }
 
-export async function openDatabase(wasmPath: string, filePath: string | null): Promise<Db> {
+async function loadSql(wasmPath: string) {
   const wasmBinary = fs.readFileSync(wasmPath)
-  const SQL = await initSqlJs({ wasmBinary: wasmBinary as unknown as ArrayBuffer })
+  return initSqlJs({ wasmBinary: wasmBinary as unknown as ArrayBuffer })
+}
+
+export async function openDatabaseFromBytes(wasmPath: string, bytes: Uint8Array): Promise<Db> {
+  const SQL = await loadSql(wasmPath)
+  const db = new Db(new SQL.Database(bytes), null)
+  let version = 0
+  try {
+    version = db.get<{ user_version: number }>('PRAGMA user_version')?.user_version ?? 0
+  } catch {
+    throw new Error('O arquivo não é um banco SQLite válido')
+  }
+  if (version < 1) {
+    throw new Error('Este banco SQLite não pertence ao Controle de Gastos')
+  }
+  db.migrate()
+  return db
+}
+
+export async function openDatabase(wasmPath: string, filePath: string | null): Promise<Db> {
+  const SQL = await loadSql(wasmPath)
   const existing = filePath && fs.existsSync(filePath) ? fs.readFileSync(filePath) : null
   const database = existing ? new SQL.Database(existing) : new SQL.Database()
   const db = new Db(database, filePath)

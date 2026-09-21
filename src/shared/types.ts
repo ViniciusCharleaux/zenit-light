@@ -212,6 +212,22 @@ export interface ExportResult {
   path?: string
 }
 
+export interface ImportCounts {
+  cards: number
+  purchases: number
+  installments: number
+  fixedExpenses: number
+  fixedEntries: number
+  invoices: number
+}
+
+export interface ImportResult {
+  canceled: boolean
+  path?: string
+  backupPath?: string
+  counts?: ImportCounts
+}
+
 export interface Api {
   listCards(): Promise<CardDTO[]>
   saveCard(input: CardInput): Promise<void>
@@ -235,6 +251,8 @@ export interface Api {
   exportJson(): Promise<ExportResult>
   exportCsv(): Promise<ExportResult>
   exportDatabase(): Promise<ExportResult>
+  importData(): Promise<ImportResult>
+  getAppVersion(): Promise<string>
   getDatabasePath(): Promise<string>
   revealDatabase(): Promise<void>
 }

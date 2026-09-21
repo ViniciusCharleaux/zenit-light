@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { createRequire } from 'node:module'
 import { test } from 'node:test'
-import { openDatabase } from '../src/main/db'
+import { openDatabase, openDatabaseFromBytes } from '../src/main/db'
 import { createServices } from '../src/main/services'
 import { firstInstallmentMonth, splitInstallments } from '../src/shared/date'
 
@@ -169,4 +169,75 @@ test('exportações', async () => {
   const dump = services.dumpAll() as { cards: unknown[] }
   assert.equal(dump.cards.length, 1)
   assert.ok(services.buildCsv().startsWith('\uFEFFTipo;'))
+})
+
+async function populated(today: { value: string }) {
+  const { db, services } = await setup(today)
+  services.saveCard({ name: 'Nubank', limitCents: 500000, closingDay: 10 })
+  const card = services.listCards()[0]
+  services.createPurchase({
+    name: 'PS5',
+    cardId: card.id,
+    purchaseDate: '2026-09-02',
+    totalCents: 400000,
+    count: 4,
+    installmentCents: null,
+    firstMonth: '2026-09',
+    paidCount: 1
+  })
+  services.saveFixedExpense({ name: 'Aluguel', amountCents: 150000, dueDay: 5, active: true, cardId: card.id })
+  return { db, services, card }
+}
+
+test('importação por JSON restaura os mesmos dados', async () => {
+  const today = { value: '2026-09-18' }
+  const source = await populated(today)
+  const exported = JSON.parse(JSON.stringify(source.services.dumpAll()))
+
+  const target = await setup(today)
+  target.services.saveCard({ name: 'Lixo', limitCents: 1, closingDay: 1 })
+  const counts = target.services.importData(exported)
+  assert.equal(counts.cards, 1)
+  assert.equal(counts.installments, 4)
+  assert.equal(target.services.listCards().length, 1)
+  assert.equal(target.services.listCards()[0].name, 'Nubank')
+  assert.equal(target.services.listCards()[0].usedCents, 300000)
+  assert.equal(target.services.getMonth('2026-09').totals.totalCents, source.services.getMonth('2026-09').totals.totalCents)
+  assert.equal(target.services.listFixedExpenses()[0].cardName, 'Nubank')
+  assert.equal(target.services.getHistory().totalPaidInstallmentsCents, 100000)
+
+  target.services.saveCard({ name: 'Novo', limitCents: 100, closingDay: 3 })
+  assert.equal(target.services.listCards().length, 2)
+})
+
+test('importação por banco SQLite', async () => {
+  const today = { value: '2026-09-18' }
+  const source = await populated(today)
+  const bytes = source.db.snapshot()
+  const opened = await openDatabaseFromBytes(wasmPath, bytes)
+  const payload = createServices(opened, () => today.value).dumpAll()
+
+  const target = await setup(today)
+  const counts = target.services.importData(payload)
+  assert.equal(counts.purchases, 1)
+  assert.equal(target.services.listPurchases()[0].name, 'PS5')
+
+  await assert.rejects(() => openDatabaseFromBytes(wasmPath, new Uint8Array([1, 2, 3, 4])), /SQLite/)
+  const blank = await openDatabase(wasmPath, null)
+  await assert.rejects(() => openDatabaseFromBytes(wasmPath, new Uint8Array(0)), /não pertence/)
+  assert.ok(blank)
+})
+
+test('importação recusa arquivos inválidos sem alterar os dados', async () => {
+  const today = { value: '2026-09-18' }
+  const target = await populated(today)
+  assert.throws(() => target.services.importData({ version: 2 }), /versão/)
+  assert.throws(() => target.services.importData(null), /inválido/)
+  assert.throws(() => target.services.importData({ version: 1, cards: [] }), /seção/)
+  const broken = JSON.parse(JSON.stringify(target.services.dumpAll()))
+  broken.installments[0].purchase_id = 999
+  assert.throws(() => target.services.importData(broken), /inconsistentes/)
+  assert.equal(target.services.listCards().length, 1)
+  assert.equal(target.services.listPurchases().length, 1)
+  assert.equal(target.services.getMonth('2026-09').installments.length, 1)
 })

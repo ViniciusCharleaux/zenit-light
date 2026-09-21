@@ -1,4 +1,6 @@
-import { Database, FileJson, FileSpreadsheet, FolderOpen } from 'lucide-react'
+import { useState } from 'react'
+import { Database, FileJson, FileSpreadsheet, FolderOpen, Upload } from 'lucide-react'
+import { ConfirmDialog } from '../components/Modal'
 import { useToast } from '../components/Toast'
 import { api } from '../lib/api'
 import { useData } from '../lib/hooks'
@@ -6,6 +8,23 @@ import { useData } from '../lib/hooks'
 export function DataExport() {
   const { run, notify } = useToast()
   const path = useData(() => api.getDatabasePath(), [])
+  const [confirmingImport, setConfirmingImport] = useState(false)
+
+  const importData = async () => {
+    setConfirmingImport(false)
+    try {
+      const result = await api.importData()
+      if (result.canceled || !result.counts) {
+        return
+      }
+      const { cards, purchases, installments, fixedExpenses } = result.counts
+      notify(
+        `Importado: ${cards} cartões, ${purchases} compras, ${installments} parcelas e ${fixedExpenses} gastos fixos. Uma cópia dos dados anteriores foi salva na pasta backups.`
+      )
+    } catch (error) {
+      notify(error instanceof Error ? error.message : 'Não foi possível importar', 'error')
+    }
+  }
 
   const exportWith = async (action: () => Promise<{ canceled: boolean; path?: string }>) => {
     try {
@@ -69,6 +88,18 @@ export function DataExport() {
 
         <div className="card row-between wrap">
           <div>
+            <div className="strong">Importar dados</div>
+            <div className="hint">
+              Restaura a partir de um JSON ou banco SQLite exportado por este app. Substitui todos os dados atuais.
+            </div>
+          </div>
+          <button className="btn btn-ghost" onClick={() => setConfirmingImport(true)}>
+            <Upload size={16} /> Importar
+          </button>
+        </div>
+
+        <div className="card row-between wrap">
+          <div>
             <div className="strong">Local do banco de dados</div>
             <div className="hint" style={{ wordBreak: 'break-all' }}>
               {path.data ?? '...'}
@@ -79,6 +110,17 @@ export function DataExport() {
           </button>
         </div>
       </div>
+
+      {confirmingImport ? (
+        <ConfirmDialog
+          title="Importar dados"
+          message="Importar vai substituir todos os cartões, compras, parcelas e gastos fixos atuais pelos do arquivo. Antes de substituir, o app guarda uma cópia dos dados atuais na pasta backups. Deseja continuar?"
+          confirmLabel="Escolher arquivo"
+          danger
+          onConfirm={importData}
+          onCancel={() => setConfirmingImport(false)}
+        />
+      ) : null}
     </div>
   )
 }

@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import {
   CalendarDays,
   CreditCard,
@@ -10,6 +10,7 @@ import {
   Wallet
 } from 'lucide-react'
 import { ToastProvider } from './components/Toast'
+import { api } from './lib/api'
 import { Calendar } from './pages/Calendar'
 import { Cards } from './pages/Cards'
 import { Dashboard } from './pages/Dashboard'
@@ -32,6 +33,17 @@ const NAV: { id: PageId; label: string; icon: ReactNode }[] = [
 
 export function App() {
   const [page, setPage] = useState<PageId>('dashboard')
+  const [version, setVersion] = useState<string | null>(null)
+
+  useEffect(() => {
+    api
+      .getAppVersion()
+      .then(setVersion)
+      .catch(() => setVersion(null))
+  }, [])
+
+  const [versionNumber, ...tagParts] = (version ?? '').split('-')
+  const versionTag = tagParts.join('-')
 
   return (
     <ToastProvider>
@@ -61,6 +73,12 @@ export function App() {
             {NAV[6].icon}
             {NAV[6].label}
           </button>
+          {version ? (
+            <div className="version" title={`Versão ${version}`}>
+              <span>v{versionNumber}</span>
+              {versionTag ? <span className="badge warning">{versionTag}</span> : null}
+            </div>
+          ) : null}
         </aside>
         <main className="main">
           {page === 'dashboard' ? <Dashboard /> : null}

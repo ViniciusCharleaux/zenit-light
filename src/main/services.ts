@@ -21,6 +21,7 @@ import type {
   FixedExpenseInput,
   HistoryMonth,
   HistoryOverview,
+  ImportCounts,
   InstallmentRow,
   InvoiceRow,
   MonthData,
@@ -35,7 +36,7 @@ export class UserError extends Error {}
 
 export type ServiceApi = Omit<
   Api,
-  'exportJson' | 'exportCsv' | 'exportDatabase' | 'getDatabasePath' | 'revealDatabase'
+  'exportJson' | 'exportCsv' | 'exportDatabase' | 'importData' | 'getAppVersion' | 'getDatabasePath' | 'revealDatabase'
 >
 
 type Sync<T> = {
@@ -1040,5 +1041,181 @@ export function createServices(db: Db, getToday: () => string) {
     unpayInvoice
   }
 
-  return { ...api, dumpAll, buildCsv }
+  function importData(payload: unknown): ImportCounts {
+    if (typeof payload !== 'object' || payload === null || Array.isArray(payload)) {
+      fail('Arquivo inválido: não parece uma exportação do Controle de Gastos')
+    }
+    const source = payload as Record<string, unknown>
+    if (source.version !== 1) {
+      fail('Arquivo inválido: versão de exportação não reconhecida')
+    }
+    const section = (key: string): Record<string, unknown>[] => {
+      const value = source[key]
+      if (!Array.isArray(value) || value.some((item) => typeof item !== 'object' || item === null)) {
+        fail(`Arquivo inválido: seção "${key}" ausente ou incorreta`)
+      }
+      return value as Record<string, unknown>[]
+    }
+    const int = (row: Record<string, unknown>, key: string): number => {
+      const value = row[key]
+      if (typeof value !== 'number' || !Number.isInteger(value)) {
+        fail(`Arquivo inválido: campo "${key}" incorreto`)
+      }
+      return value as number
+    }
+    const optInt = (row: Record<string, unknown>, key: string): number | null =>
+      row[key] === null || row[key] === undefined ? null : int(row, key)
+    const str = (row: Record<string, unknown>, key: string): string => {
+      const value = row[key]
+      if (typeof value !== 'string' || value === '') {
+        fail(`Arquivo inválido: campo "${key}" incorreto`)
+      }
+      return value as string
+    }
+    const optStr = (row: Record<string, unknown>, key: string): string | null => {
+      const value = row[key]
+      if (value === null || value === undefined) {
+        return null
+      }
+      if (typeof value !== 'string') {
+        fail(`Arquivo inválido: campo "${key}" incorreto`)
+      }
+      return value as string
+    }
+    const monthField = (row: Record<string, unknown>, key: string): string => {
+      const value = str(row, key)
+      if (!MONTH_RE.test(value)) {
+        fail(`Arquivo inválido: mês "${value}" incorreto`)
+      }
+      return value
+    }
+
+    const cards = section('cards')
+    const purchases = section('purchases')
+    const installments = section('installments')
+    const fixedExpenses = section('fixedExpenses')
+    const fixedEntries = section('fixedEntries')
+    const invoices = section('invoices')
+
+    try {
+      return db.transaction(() => {
+        db.run('DELETE FROM installments')
+        db.run('DELETE FROM purchases')
+        db.run('DELETE FROM invoices')
+        db.run('DELETE FROM fixed_entries')
+        db.run('DELETE FROM fixed_expenses')
+        db.run('DELETE FROM cards')
+        db.run('DELETE FROM meta')
+
+        for (const row of cards) {
+          db.run(
+            'INSERT INTO cards (id, name, credit_limit_cents, closing_day, created_at) VALUES (?, ?, ?, ?, ?)',
+            [
+              int(row, 'id'),
+              str(row, 'name'),
+              int(row, 'credit_limit_cents'),
+              int(row, 'closing_day'),
+              optStr(row, 'created_at') ?? nowIso()
+            ]
+          )
+        }
+        for (const row of purchases) {
+          const status = str(row, 'status')
+          if (status !== 'active' && status !== 'cancelled') {
+            fail('Arquivo inválido: situação de compra incorreta')
+          }
+          db.run(
+            `INSERT INTO purchases (id, card_id, name, purchase_date, total_cents, installments_count, status, created_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+            [
+              int(row, 'id'),
+              int(row, 'card_id'),
+              str(row, 'name'),
+              str(row, 'purchase_date'),
+              int(row, 'total_cents'),
+              int(row, 'installments_count'),
+              status,
+              optStr(row, 'created_at') ?? nowIso()
+            ]
+          )
+        }
+        for (const row of installments) {
+          db.run(
+            'INSERT INTO installments (id, purchase_id, number, ref_month, amount_cents, paid_at) VALUES (?, ?, ?, ?, ?, ?)',
+            [
+              int(row, 'id'),
+              int(row, 'purchase_id'),
+              int(row, 'number'),
+              monthField(row, 'ref_month'),
+              int(row, 'amount_cents'),
+              optStr(row, 'paid_at')
+            ]
+          )
+        }
+        for (const row of fixedExpenses) {
+          db.run(
+            `INSERT INTO fixed_expenses (id, name, amount_cents, due_day, active, card_id, created_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?)`,
+            [
+              int(row, 'id'),
+              str(row, 'name'),
+              int(row, 'amount_cents'),
+              int(row, 'due_day'),
+              int(row, 'active') ? 1 : 0,
+              optInt(row, 'card_id'),
+              optStr(row, 'created_at') ?? nowIso()
+            ]
+          )
+        }
+        let lastFixedMonth = ''
+        for (const row of fixedEntries) {
+          const refMonth = monthField(row, 'ref_month')
+          if (refMonth > lastFixedMonth) {
+            lastFixedMonth = refMonth
+          }
+          db.run(
+            `INSERT INTO fixed_entries (id, expense_id, ref_month, name, amount_cents, due_day, paid_at, card_id)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+            [
+              int(row, 'id'),
+              optInt(row, 'expense_id'),
+              refMonth,
+              str(row, 'name'),
+              int(row, 'amount_cents'),
+              int(row, 'due_day'),
+              optStr(row, 'paid_at'),
+              optInt(row, 'card_id')
+            ]
+          )
+        }
+        for (const row of invoices) {
+          db.run('INSERT INTO invoices (id, card_id, ref_month, paid_at, amount_cents) VALUES (?, ?, ?, ?, ?)', [
+            int(row, 'id'),
+            int(row, 'card_id'),
+            monthField(row, 'ref_month'),
+            str(row, 'paid_at'),
+            int(row, 'amount_cents')
+          ])
+        }
+        if (lastFixedMonth) {
+          db.run("INSERT INTO meta (key, value) VALUES ('fixed_last_month', ?)", [lastFixedMonth])
+        }
+        return {
+          cards: cards.length,
+          purchases: purchases.length,
+          installments: installments.length,
+          fixedExpenses: fixedExpenses.length,
+          fixedEntries: fixedEntries.length,
+          invoices: invoices.length
+        }
+      })
+    } catch (error) {
+      if (error instanceof UserError) {
+        throw error
+      }
+      throw new UserError('O arquivo tem dados inconsistentes e nada foi importado')
+    }
+  }
+
+  return { ...api, dumpAll, buildCsv, importData }
 }
