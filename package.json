@@ -1,6 +1,6 @@
 {
   "name": "controle-gastos",
-  "version": "1.1.0-beta.1",
+  "version": "1.1.0-beta.2",
   "description": "Controle pessoal de gastos fixos e compras parceladas",
   "main": "./out/main/index.js",
   "author": "Vinicius Charleaux",
@@ -12,7 +12,9 @@
     "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p src/renderer/tsconfig.json",
     "test": "tsx --test tests/*.test.ts",
     "dist": "electron-vite build && electron-builder",
-    "dist:win": "electron-vite build && electron-builder --win"
+    "dist:win": "electron-vite build && electron-builder --win",
+    "dist:mac": "electron-vite build && electron-builder --mac",
+    "dist:linux": "electron-vite build && electron-builder --linux"
   },
   "build": {
     "appId": "com.vinicius.controlegastos",
@@ -22,7 +24,10 @@
       "package.json"
     ],
     "win": {
-      "target": "nsis"
+      "target": [
+        "nsis",
+        "portable"
+      ]
     },
     "linux": {
       "target": "AppImage",
@@ -30,9 +35,23 @@
     },
     "mac": {
       "target": "dmg"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    },
+    "directories": {
+      "output": "release"
+    },
+    "artifactName": "ControleGastos-${version}-${os}-${arch}.${ext}",
+    "publish": {
+      "provider": "github",
+      "owner": "SEU_USUARIO_GITHUB",
+      "repo": "controle-gastos"
     }
   },
   "dependencies": {
+    "electron-updater": "^6.8.9",
     "sql.js": "^1.14.2"
   },
   "devDependencies": {

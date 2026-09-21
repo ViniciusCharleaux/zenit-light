@@ -3,6 +3,7 @@ import { app, BrowserWindow, dialog, shell } from 'electron'
 import { openDatabase } from './db'
 import { registerIpc } from './ipc'
 import { resolveDatabasePath } from './settings'
+import { scheduleUpdateChecks, setupAutoUpdater } from './updater'
 
 function createWindow(): void {
   const window = new BrowserWindow({
@@ -76,6 +77,8 @@ if (!gotLock) {
     const db = await openDatabase(wasmPath, databasePath)
     registerIpc(db, databasePath, wasmPath)
     createWindow()
+    setupAutoUpdater()
+    scheduleUpdateChecks()
 
     app.on('activate', () => {
       if (BrowserWindow.getAllWindows().length === 0) {

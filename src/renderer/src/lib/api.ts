@@ -1,10 +1,13 @@
-import type { Api } from '@shared/types'
+import type { Api, UpdateStatus } from '@shared/types'
 
 type Reply = { ok: true; data: unknown } | { ok: false; error: string }
 
 declare global {
   interface Window {
-    bridge: { invoke(channel: string, ...args: unknown[]): Promise<Reply> }
+    bridge: {
+      invoke(channel: string, ...args: unknown[]): Promise<Reply>
+      onUpdateStatus(callback: (status: UpdateStatus) => void): () => void
+    }
   }
 }
 

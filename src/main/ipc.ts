@@ -5,6 +5,7 @@ import { openDatabaseFromBytes, type Db } from './db'
 import { createServices } from './services'
 import { localToday } from '../shared/date'
 import { writeSettings } from './settings'
+import { checkForUpdates, quitAndInstall } from './updater'
 import type { ExportResult, ImportResult, LocationResult } from '../shared/types'
 
 type Handler = (...args: any[]) => unknown
@@ -134,6 +135,8 @@ export function registerIpc(db: Db, databasePath: string, wasmPath: string): voi
     exportDatabase: () => saveFile('controle-gastos', 'sqlite', 'Banco SQLite', db.snapshot()),
     importData: importFile,
     getAppVersion: () => app.getVersion(),
+    checkForUpdates: () => checkForUpdates(),
+    quitAndInstall: () => quitAndInstall(),
     getDatabaseInfo: () => ({ path: currentPath, isDefault: samePath(currentPath, defaultPath) }),
     changeDatabaseLocation: changeLocation,
     resetDatabaseLocation: resetLocation,

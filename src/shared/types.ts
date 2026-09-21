@@ -248,6 +248,17 @@ export type MainOnlyMethod =
   | 'changeDatabaseLocation'
   | 'resetDatabaseLocation'
   | 'revealDatabase'
+  | 'checkForUpdates'
+  | 'quitAndInstall'
+
+export type UpdateStatus =
+  | { state: 'idle' }
+  | { state: 'checking' }
+  | { state: 'available'; version: string }
+  | { state: 'not-available' }
+  | { state: 'downloading'; percent: number }
+  | { state: 'downloaded'; version: string }
+  | { state: 'error'; message: string }
 
 export interface Api {
   listCards(): Promise<CardDTO[]>
@@ -277,5 +288,7 @@ export interface Api {
   getDatabaseInfo(): Promise<DatabaseInfo>
   changeDatabaseLocation(): Promise<LocationResult>
   resetDatabaseLocation(): Promise<LocationResult>
+  checkForUpdates(): Promise<void>
+  quitAndInstall(): Promise<void>
   revealDatabase(): Promise<void>
 }
