@@ -90,7 +90,8 @@ function Tooltip({ item }: { item: CalendarMonth }) {
 
 export function Calendar() {
   const currentMonth = monthOf(localToday())
-  const [year, setYear] = useState(Number(currentMonth.slice(0, 4)))
+  const currentYear = Number(currentMonth.slice(0, 4))
+  const [year, setYear] = useState(currentYear)
   const [selected, setSelected] = useState(currentMonth)
 
   const calendar = useData(() => api.getCalendar(year), [year])
@@ -104,7 +105,7 @@ export function Calendar() {
   const changeYear = (delta: number) => {
     const next = year + delta
     setYear(next)
-    setSelected(`${next}-${selected.slice(5, 7)}`)
+    setSelected(next === currentYear ? currentMonth : `${next}-01`)
   }
 
   const months = calendar.data ?? []

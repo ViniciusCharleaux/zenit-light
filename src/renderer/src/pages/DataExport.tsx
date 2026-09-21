@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Database, FileJson, FileSpreadsheet, FolderOpen, Upload } from 'lucide-react'
+import { Database, FileJson, FileSpreadsheet, FolderInput, FolderOpen, Undo2, Upload } from 'lucide-react'
 import { ConfirmDialog } from '../components/Modal'
 import { useToast } from '../components/Toast'
 import { api } from '../lib/api'
@@ -7,11 +7,25 @@ import { useData } from '../lib/hooks'
 
 export function DataExport() {
   const { run, notify } = useToast()
-  const path = useData(() => api.getDatabasePath(), [])
-  const [confirmingImport, setConfirmingImport] = useState(false)
+  const info = useData(() => api.getDatabaseInfo(), [])
+  const [dialog, setDialog] = useState<'import' | 'change' | 'reset' | null>(null)
+
+  const moveTo = async (action: () => Promise<{ canceled: boolean; path?: string }>) => {
+    setDialog(null)
+    try {
+      const result = await action()
+      if (result.canceled) {
+        return
+      }
+      notify(`Dados movidos para ${result.path}`)
+      info.reload()
+    } catch (error) {
+      notify(error instanceof Error ? error.message : 'Não foi possível mover os dados', 'error')
+    }
+  }
 
   const importData = async () => {
-    setConfirmingImport(false)
+    setDialog(null)
     try {
       const result = await api.importData()
       if (result.canceled || !result.counts) {
@@ -93,32 +107,75 @@ export function DataExport() {
               Restaura a partir de um JSON ou banco SQLite exportado por este app. Substitui todos os dados atuais.
             </div>
           </div>
-          <button className="btn btn-ghost" onClick={() => setConfirmingImport(true)}>
+          <button className="btn btn-ghost" onClick={() => setDialog('import')}>
             <Upload size={16} /> Importar
           </button>
         </div>
 
-        <div className="card row-between wrap">
-          <div>
-            <div className="strong">Local do banco de dados</div>
-            <div className="hint" style={{ wordBreak: 'break-all' }}>
-              {path.data ?? '...'}
+        <div className="card stack" style={{ gap: 12 }}>
+          <div className="row-between wrap">
+            <div>
+              <div className="row">
+                <span className="strong">Local do banco de dados</span>
+                {info.data ? (
+                  <span className={`badge ${info.data.isDefault ? '' : 'warning'}`}>
+                    {info.data.isDefault ? 'Padrão' : 'Personalizado'}
+                  </span>
+                ) : null}
+              </div>
+              <div className="hint" style={{ wordBreak: 'break-all' }}>
+                {info.data?.path ?? '...'}
+              </div>
+            </div>
+            <div className="row wrap">
+              <button className="btn btn-ghost btn-sm" onClick={() => run(() => api.revealDatabase())}>
+                <FolderOpen size={14} /> Mostrar na pasta
+              </button>
+              <button className="btn btn-ghost btn-sm" onClick={() => setDialog('change')}>
+                <FolderInput size={14} /> Alterar local
+              </button>
+              {info.data && !info.data.isDefault ? (
+                <button className="btn btn-ghost btn-sm" onClick={() => setDialog('reset')}>
+                  <Undo2 size={14} /> Voltar ao padrão
+                </button>
+              ) : null}
             </div>
           </div>
-          <button className="btn btn-ghost btn-sm" onClick={() => run(() => api.revealDatabase())}>
-            <FolderOpen size={14} /> Mostrar na pasta
-          </button>
+          <div className="hint">
+            Ao alterar, o arquivo é copiado para o local escolhido, o app passa a usá-lo e o arquivo antigo é removido.
+            Prefira uma pasta que esteja sempre disponível, como Documentos ou uma pasta sincronizada.
+          </div>
         </div>
       </div>
 
-      {confirmingImport ? (
+      {dialog === 'import' ? (
         <ConfirmDialog
           title="Importar dados"
           message="Importar vai substituir todos os cartões, compras, parcelas e gastos fixos atuais pelos do arquivo. Antes de substituir, o app guarda uma cópia dos dados atuais na pasta backups. Deseja continuar?"
           confirmLabel="Escolher arquivo"
           danger
           onConfirm={importData}
-          onCancel={() => setConfirmingImport(false)}
+          onCancel={() => setDialog(null)}
+        />
+      ) : null}
+
+      {dialog === 'change' ? (
+        <ConfirmDialog
+          title="Alterar local dos dados"
+          message="O app vai copiar o banco de dados para o local que você escolher, passar a usá-lo e remover o arquivo atual. Deseja continuar?"
+          confirmLabel="Escolher local"
+          onConfirm={() => moveTo(() => api.changeDatabaseLocation())}
+          onCancel={() => setDialog(null)}
+        />
+      ) : null}
+
+      {dialog === 'reset' ? (
+        <ConfirmDialog
+          title="Voltar ao local padrão"
+          message="O banco de dados volta para a pasta padrão do app e o arquivo do local personalizado é removido. Se já existir um arquivo no local padrão, ele é renomeado e mantido como cópia. Deseja continuar?"
+          confirmLabel="Voltar ao padrão"
+          onConfirm={() => moveTo(() => api.resetDatabaseLocation())}
+          onCancel={() => setDialog(null)}
         />
       ) : null}
     </div>

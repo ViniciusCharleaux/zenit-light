@@ -228,6 +228,27 @@ export interface ImportResult {
   counts?: ImportCounts
 }
 
+export interface DatabaseInfo {
+  path: string
+  isDefault: boolean
+}
+
+export interface LocationResult {
+  canceled: boolean
+  path?: string
+}
+
+export type MainOnlyMethod =
+  | 'exportJson'
+  | 'exportCsv'
+  | 'exportDatabase'
+  | 'importData'
+  | 'getAppVersion'
+  | 'getDatabaseInfo'
+  | 'changeDatabaseLocation'
+  | 'resetDatabaseLocation'
+  | 'revealDatabase'
+
 export interface Api {
   listCards(): Promise<CardDTO[]>
   saveCard(input: CardInput): Promise<void>
@@ -253,6 +274,8 @@ export interface Api {
   exportDatabase(): Promise<ExportResult>
   importData(): Promise<ImportResult>
   getAppVersion(): Promise<string>
-  getDatabasePath(): Promise<string>
+  getDatabaseInfo(): Promise<DatabaseInfo>
+  changeDatabaseLocation(): Promise<LocationResult>
+  resetDatabaseLocation(): Promise<LocationResult>
   revealDatabase(): Promise<void>
 }

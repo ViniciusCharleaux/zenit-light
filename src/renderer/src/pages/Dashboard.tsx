@@ -1,5 +1,5 @@
-import { CreditCard, Receipt, Wallet } from 'lucide-react'
-import { localToday, monthLabel, monthOf } from '@shared/date'
+import { CreditCard, Hourglass, Receipt, Wallet } from 'lucide-react'
+import { localToday, monthLabel, monthOf, monthShort } from '@shared/date'
 import { MonthDetail } from '../components/MonthDetail'
 import { api } from '../lib/api'
 import { formatCents, percent } from '../lib/format'
@@ -9,11 +9,22 @@ export function Dashboard() {
   const month = monthOf(localToday())
   const monthData = useData(() => api.getMonth(month), [month])
   const cards = useData(() => api.listCards(), [])
+  const purchases = useData(() => api.listPurchases(), [])
 
   const reload = () => {
     monthData.reload()
     cards.reload()
+    purchases.reload()
   }
+
+  const inPayment = purchases.data ?? []
+  const remainingCents = inPayment.reduce((sum, item) => sum + item.remainingCents, 0)
+  const remainingInstallments = inPayment.reduce((sum, item) => sum + item.remainingCount, 0)
+  const paidInPayment = inPayment.reduce((sum, item) => sum + item.paidCents, 0)
+  const finalMonth = inPayment.reduce<string | null>(
+    (latest, item) => (item.lastMonth && (!latest || item.lastMonth > latest) ? item.lastMonth : latest),
+    null
+  )
 
   const data = monthData.data
   const paidPercent = data ? percent(data.totals.paidCents, data.totals.totalCents) : 0
@@ -70,6 +81,36 @@ export function Dashboard() {
               </div>
             </div>
           </div>
+
+          {purchases.data ? (
+            <div className="card overview">
+              <div>
+                <div className="stat-label">
+                  <span className="icon-bubble">
+                    <Hourglass size={16} />
+                  </span>
+                  Restante nas compras parceladas
+                </div>
+                <div className="stat-value">{formatCents(remainingCents)}</div>
+                <div className="stat-note">
+                  {inPayment.length === 0
+                    ? 'Nenhuma compra parcelada em andamento'
+                    : `${inPayment.length} ${inPayment.length === 1 ? 'compra' : 'compras'} · ${remainingInstallments} ${
+                        remainingInstallments === 1 ? 'parcela restante' : 'parcelas restantes'
+                      }${finalMonth ? ` · última em ${monthShort(finalMonth)}` : ''}`}
+                </div>
+              </div>
+              <div className="stack" style={{ gap: 8 }}>
+                <div className="progress">
+                  <span style={{ width: `${percent(paidInPayment, paidInPayment + remainingCents)}%` }} />
+                </div>
+                <div className="row-between hint">
+                  <span>{formatCents(paidInPayment)} já pagos</span>
+                  <span>{formatCents(paidInPayment + remainingCents)} no total</span>
+                </div>
+              </div>
+            </div>
+          ) : null}
 
           {cards.data && cards.data.length > 0 ? (
             <div className="card">

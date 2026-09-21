@@ -24,6 +24,7 @@ import type {
   ImportCounts,
   InstallmentRow,
   InvoiceRow,
+  MainOnlyMethod,
   MonthData,
   PurchaseDetail,
   PurchaseInput,
@@ -34,10 +35,7 @@ import type {
 
 export class UserError extends Error {}
 
-export type ServiceApi = Omit<
-  Api,
-  'exportJson' | 'exportCsv' | 'exportDatabase' | 'importData' | 'getAppVersion' | 'getDatabasePath' | 'revealDatabase'
->
+export type ServiceApi = Omit<Api, MainOnlyMethod>
 
 type Sync<T> = {
   [K in keyof T]: T[K] extends (...args: infer A) => Promise<infer R> ? (...args: A) => R : never

@@ -1235,3 +1235,10 @@ select.input {
   font-size: 12.5px;
   font-weight: 600;
 }
+
+.overview {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  align-items: center;
+  gap: 32px;
+}

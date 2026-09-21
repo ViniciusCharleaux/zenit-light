@@ -75,9 +75,17 @@ export class Db {
 
   constructor(
     private readonly database: Database,
-    private readonly filePath: string | null
+    private filePath: string | null
   ) {
     this.database.run('PRAGMA foreign_keys = ON')
+  }
+
+  getFilePath(): string | null {
+    return this.filePath
+  }
+
+  setFilePath(filePath: string | null): void {
+    this.filePath = filePath
   }
 
   exec(sql: string): void {

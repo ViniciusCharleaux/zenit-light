@@ -1,7 +1,8 @@
 import path from 'node:path'
-import { app, BrowserWindow, shell } from 'electron'
+import { app, BrowserWindow, dialog, shell } from 'electron'
 import { openDatabase } from './db'
 import { registerIpc } from './ipc'
+import { resolveDatabasePath } from './settings'
 
 function createWindow(): void {
   const window = new BrowserWindow({
@@ -53,9 +54,27 @@ if (!gotLock) {
 
   app.whenReady().then(async () => {
     const wasmPath = path.join(app.getAppPath(), 'node_modules', 'sql.js', 'dist', 'sql-wasm.wasm')
-    const databasePath = path.join(app.getPath('userData'), 'controle-gastos.sqlite')
+    const userData = app.getPath('userData')
+    const databasePath = resolveDatabasePath(
+      userData,
+      path.join(userData, 'controle-gastos.sqlite'),
+      (unavailable) =>
+        dialog.showMessageBoxSync({
+          type: 'warning',
+          title: 'Controle de Gastos',
+          message: 'Não foi possível acessar o arquivo de dados',
+          detail: `O app está configurado para usar:\n${unavailable}\n\nConfira se a pasta ou o drive está disponível. Se continuar com o local padrão, o app começa com um banco vazio e o arquivo original não é alterado.`,
+          buttons: ['Usar local padrão', 'Sair'],
+          defaultId: 0,
+          cancelId: 1
+        }) === 0
+    )
+    if (!databasePath) {
+      app.quit()
+      return
+    }
     const db = await openDatabase(wasmPath, databasePath)
-    registerIpc(db, databasePath)
+    registerIpc(db, databasePath, wasmPath)
     createWindow()
 
     app.on('activate', () => {
