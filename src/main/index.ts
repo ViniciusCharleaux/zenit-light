@@ -14,7 +14,7 @@ function createWindow(): void {
     show: false,
     backgroundColor: '#08111f',
     autoHideMenuBar: true,
-    title: 'Controle de Gastos',
+    title: 'Zenit Light',
     webPreferences: {
       preload: path.join(__dirname, '../preload/index.js'),
       contextIsolation: true,
@@ -62,7 +62,7 @@ if (!gotLock) {
       (unavailable) =>
         dialog.showMessageBoxSync({
           type: 'warning',
-          title: 'Controle de Gastos',
+          title: 'Zenit Light',
           message: 'Não foi possível acessar o arquivo de dados',
           detail: `O app está configurado para usar:\n${unavailable}\n\nConfira se a pasta ou o drive está disponível. Se continuar com o local padrão, o app começa com um banco vazio e o arquivo original não é alterado.`,
           buttons: ['Usar local padrão', 'Sair'],

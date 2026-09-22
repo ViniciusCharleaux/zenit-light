@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import {
   CalendarDays,
   CreditCard,
@@ -9,8 +9,9 @@ import {
   ShoppingBag,
   Wallet
 } from 'lucide-react'
-import { ToastProvider } from './components/Toast'
+import { ToastProvider, useToast } from './components/Toast'
 import { api } from './lib/api'
+import { useUpdateStatus } from './lib/useUpdateStatus'
 import { Calendar } from './pages/Calendar'
 import { Cards } from './pages/Cards'
 import { Dashboard } from './pages/Dashboard'
@@ -31,6 +32,21 @@ const NAV: { id: PageId; label: string; icon: ReactNode }[] = [
   { id: 'data', label: 'Dados', icon: <Database size={18} /> }
 ]
 
+function UpdateWatcher() {
+  const status = useUpdateStatus()
+  const { notify } = useToast()
+  const notified = useRef(false)
+
+  useEffect(() => {
+    if (status.state === 'downloaded' && !notified.current) {
+      notified.current = true
+      notify(`Versão ${status.version} baixada. Vá em Dados > Atualizações para reiniciar.`)
+    }
+  }, [status, notify])
+
+  return null
+}
+
 export function App() {
   const [page, setPage] = useState<PageId>('dashboard')
   const [version, setVersion] = useState<string | null>(null)
@@ -47,6 +63,7 @@ export function App() {
 
   return (
     <ToastProvider>
+      <UpdateWatcher />
       <div className="app">
         <aside className="sidebar">
           <div className="brand">
@@ -54,7 +71,7 @@ export function App() {
               <Wallet size={20} />
             </div>
             <div>
-              <div className="brand-name">Controle</div>
+              <div className="brand-name">Zenit Light</div>
               <div className="brand-sub">Gastos pessoais</div>
             </div>
           </div>

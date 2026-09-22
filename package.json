@@ -1,6 +1,6 @@
 {
   "name": "controle-gastos",
-  "version": "1.1.0-beta.3",
+  "version": "1.1.0-beta.4",
   "description": "Controle pessoal de gastos fixos e compras parceladas",
   "main": "./out/main/index.js",
   "author": "Vinicius Charleaux",
@@ -18,24 +18,13 @@
   },
   "build": {
     "appId": "com.vinicius.controlegastos",
-    "productName": "Controle de Gastos",
+    "productName": "Zenit Light",
     "files": [
       "out/**/*",
       "package.json"
     ],
     "win": {
-      "target": [
-        "nsis",
-        "portable"
-      ]
-    },
-    "nsis": {
-      "oneClick": false,
-      "allowToChangeInstallationDirectory": true,
-      "artifactName": "ControleGastos-${version}-Setup-${arch}.${ext}"
-    },
-    "portable": {
-      "artifactName": "ControleGastos-${version}-Portable-${arch}.${ext}"
+    "target": "nsis"
     },
     "linux": {
       "target": "AppImage",
@@ -44,13 +33,18 @@
     "mac": {
       "target": "dmg"
     },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    },
     "directories": {
       "output": "release"
     },
+    "artifactName": "ControleGastos-${version}-${os}-${arch}.${ext}",
     "publish": {
       "provider": "github",
-      "owner": "viniciusCharleaux",
-      "repo": "zenit-light"
+      "owner": "SEU_USUARIO_GITHUB",
+      "repo": "controle-gastos"
     }
   },
   "dependencies": {
