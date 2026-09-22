@@ -1,6 +1,6 @@
 {
   "name": "controle-gastos",
-  "version": "1.1.0-beta.2",
+  "version": "1.1.0-beta.3",
   "description": "Controle pessoal de gastos fixos e compras parceladas",
   "main": "./out/main/index.js",
   "author": "Vinicius Charleaux",
@@ -29,6 +29,14 @@
         "portable"
       ]
     },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "artifactName": "ControleGastos-${version}-Setup-${arch}.${ext}"
+    },
+    "portable": {
+      "artifactName": "ControleGastos-${version}-Portable-${arch}.${ext}"
+    },
     "linux": {
       "target": "AppImage",
       "category": "Office"
@@ -36,14 +44,9 @@
     "mac": {
       "target": "dmg"
     },
-    "nsis": {
-      "oneClick": false,
-      "allowToChangeInstallationDirectory": true
-    },
     "directories": {
       "output": "release"
     },
-    "artifactName": "ControleGastos-${version}-${os}-${arch}.${ext}",
     "publish": {
       "provider": "github",
       "owner": "viniciusCharleaux",
