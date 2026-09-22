@@ -1,14 +1,34 @@
 import { useState } from 'react'
-import { Database, FileJson, FileSpreadsheet, FolderInput, FolderOpen, Undo2, Upload } from 'lucide-react'
+import {
+  Database,
+  DownloadCloud,
+  FileJson,
+  FileSpreadsheet,
+  FolderInput,
+  FolderOpen,
+  RefreshCw,
+  Undo2,
+  Upload
+} from 'lucide-react'
 import { ConfirmDialog } from '../components/Modal'
 import { useToast } from '../components/Toast'
 import { api } from '../lib/api'
 import { useData } from '../lib/hooks'
+import { useUpdateStatus } from '../lib/useUpdateStatus'
 
 export function DataExport() {
   const { run, notify } = useToast()
   const info = useData(() => api.getDatabaseInfo(), [])
+  const version = useData(() => api.getAppVersion(), [])
+  const update = useUpdateStatus()
+  const [checking, setChecking] = useState(false)
   const [dialog, setDialog] = useState<'import' | 'change' | 'reset' | null>(null)
+
+  const checkNow = async () => {
+    setChecking(true)
+    await run(() => api.checkForUpdates())
+    window.setTimeout(() => setChecking(false), 4000)
+  }
 
   const moveTo = async (action: () => Promise<{ canceled: boolean; path?: string }>) => {
     setDialog(null)
@@ -97,6 +117,45 @@ export function DataExport() {
             <button className="btn btn-ghost" onClick={() => exportWith(() => api.exportDatabase())}>
               Exportar banco
             </button>
+          </div>
+        </div>
+
+        <div className="card row-between wrap">
+          <div>
+            <div className="row">
+              <span className="strong">Atualizações</span>
+              <span className="badge muted">v{version.data ?? '...'}</span>
+            </div>
+            <div className="hint">
+              {update.state === 'checking'
+                ? 'Verificando se há uma versão nova...'
+                : update.state === 'available'
+                  ? `Baixando a versão ${update.version}...`
+                  : update.state === 'downloading'
+                    ? `Baixando a versão nova... ${update.percent}%`
+                    : update.state === 'downloaded'
+                      ? `Versão ${update.version} pronta para instalar.`
+                      : update.state === 'not-available'
+                        ? 'Você já está na versão mais recente.'
+                        : update.state === 'error'
+                          ? update.message
+                          : 'Verifica automaticamente ao abrir o app.'}
+            </div>
+          </div>
+          <div className="row wrap">
+            {update.state === 'downloaded' ? (
+              <button className="btn btn-sm" onClick={() => run(() => api.quitAndInstall())}>
+                <DownloadCloud size={14} /> Reiniciar e instalar
+              </button>
+            ) : (
+              <button
+                className="btn btn-ghost btn-sm"
+                disabled={checking || update.state === 'checking' || update.state === 'downloading'}
+                onClick={checkNow}
+              >
+                <RefreshCw size={14} /> Verificar agora
+              </button>
+            )}
           </div>
         </div>
 
